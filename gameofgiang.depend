@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1741570066 source:c:\sdl\gameofgiang\main.cpp
+	<iostream>
+	<SDL.h>
+	<SDL_image.h>
+
