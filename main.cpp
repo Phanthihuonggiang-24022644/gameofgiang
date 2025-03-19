@@ -1,6 +1,7 @@
 #include <iostream>
 #include <SDL.h>
 #include <SDL_image.h>
+#include <vector>
 
 using namespace std;
 
@@ -10,13 +11,33 @@ const int TILE_SIZE = 40;
 const int MAP_WIDTH = SCREEN_WIDTH / TILE_SIZE;
 const int MAP_HEIGHT = SCREEN_HEIGHT / TILE_SIZE;
 
+class Wall {
+public :
+    int x, y;
+    SDL_Rect rect;
+    bool active;
+    Wall(int startX, int startY){
+    x= startX;
+    y = startY;
+    active = true;
+    rect = {x,y,TILE_SIZE,TILE_SIZE};
+    }
+
+    void render(SDL_Renderer* renderer){
+    if(active){
+        SDL_SetRenderDrawColor(renderer, 150, 75, 0, 255);
+        SDL_RenderFillRect(renderer, &rect);
+    }
+    }
+};
+
 class Game {
 public:
     bool running;
     SDL_Window* window;
     SDL_Renderer* renderer;
+    vector<Wall> walls;
 
-    // Constructor
     Game() {
         running = true;
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -39,9 +60,8 @@ public:
             running = false;
             return;
         }
+        generateWalls();
     }
-
-    // Destructor (giải phóng tài nguyên)
     ~Game() {
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
@@ -59,16 +79,28 @@ public:
                 SDL_RenderFillRect(renderer, &tile);
             }
         }
+        for(int i = 0; i < walls.size();i++){
+                walls[i].render(renderer);
+        }
         SDL_RenderPresent(renderer);
     }
 
     void run() {
         while (running) {
             render();
-            SDL_Delay(16); // ~60 FPS
+            SDL_Delay(16);
         }
     }
+    void generateWalls() {
+    for(int i = 3; i < MAP_HEIGHT - 3; i+=2){
+        for(int j = 3; j < MAP_WIDTH - 3; j+=2){
+            Wall w = Wall(j *TILE_SIZE, i * TILE_SIZE);
+            walls.push_back(w);
+        }
+    }
+    }
 };
+
 
 int main(int argc, char* argv[]) {
     Game game;
