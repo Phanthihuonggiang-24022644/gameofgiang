@@ -36,14 +36,32 @@ public:
     int x, y;
     int dirX, dirY;
     SDL_Rect rect;
+    SDL_Texture* texture;
 
-    PlayerTank (int startX, int startY) {
+    PlayerTank (int startX, int startY, SDL_Renderer* renderer) {
     x= startX;
     y = startY;
     rect = {x, y, TILE_SIZE, TILE_SIZE};
     dirX = 0;
     dirY = -1;
+    texture = IMG_LoadTexture(renderer, "player.png");
     }
+
+    ~PlayerTank() {
+        if (texture) {
+            SDL_DestroyTexture(texture);
+            texture = nullptr;
+        }
+    }
+
+   SDL_Texture* loadTexture(const string& path, SDL_Renderer* renderer) {
+    SDL_Texture* newTexture = IMG_LoadTexture(renderer, path.c_str());
+    if (!newTexture) {
+        cerr << "Failed to load image " << path << "! SDL_image Error: " << IMG_GetError() << endl;
+    }
+    return newTexture;
+}
+
     void move(int dx, int dy, const vector<Wall>& walls) {
         int newX = x + dx;
         int newY = y + dy;
@@ -66,8 +84,9 @@ public:
            }
     }
     void render(SDL_Renderer* renderer){
-        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-        SDL_RenderFillRect(renderer, &rect);
+       if (texture) {
+            SDL_RenderCopy(renderer, texture, NULL, &rect);
+        }
     }
 
 };
@@ -78,17 +97,21 @@ public:
     SDL_Window* window;
     SDL_Renderer* renderer;
     vector<Wall> walls;
-    PlayerTank player;
+    PlayerTank* player;
 
-    Game()
-    : player(((MAP_WIDTH - 1) / 2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE)
-    {
+    Game() {
         running = true;
         if (SDL_Init(SDL_INIT_VIDEO) < 0) {
             cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << endl;
             running = false;
             return;
         }
+        if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
+            cerr << "SDL_image could not initialize! SDL_image Error: " << IMG_GetError() << endl;
+            running = false;
+            return;
+        }
+
 
         window = SDL_CreateWindow("Battle City", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                   SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
@@ -104,11 +127,15 @@ public:
             running = false;
             return;
         }
+        player = new PlayerTank(((MAP_WIDTH - 1) / 2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer);
+
         generateWalls();
     }
     ~Game() {
+        delete player;
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
+        IMG_Quit();
         SDL_Quit();
     }
 
@@ -126,7 +153,7 @@ public:
         for(int i = 0; i < walls.size();i++){
                 walls[i].render(renderer);
         }
-        player.render(renderer);
+        player->render(renderer);
         SDL_RenderPresent(renderer);
     }
 
@@ -152,10 +179,10 @@ public:
                 running = false;
             } else if (event.type == SDL_KEYDOWN) {
             switch (event.key.keysym.sym) {
-            case SDLK_UP: player.move(0, -5, walls); break;
-            case SDLK_DOWN: player.move(0, 5, walls); break;
-            case SDLK_LEFT: player.move(-5, 0, walls); break;
-            case SDLK_RIGHT: player.move(5, 0, walls); break;
+            case SDLK_UP: player->move(0, -5, walls); break;
+            case SDLK_DOWN: player->move(0, 5, walls); break;
+            case SDLK_LEFT: player->move(-5, 0, walls); break;
+            case SDLK_RIGHT: player->move(5, 0, walls); break;
             }
             }
         }
