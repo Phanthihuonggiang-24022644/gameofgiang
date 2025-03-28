@@ -143,6 +143,93 @@ public:
 
 };
 
+class EnemyTank {
+public:
+    int x, y;
+    int dirX, dirY;
+    int moveDelay, shootDelay;
+    SDL_Rect rect;
+    bool active;
+    vector<Bullet> bullets;
+
+    EnemyTank(int startX, int startY) {
+        moveDelay = 15;
+        shootDelay = 5;
+        x = startX;
+        y = startY;
+        rect = {x, y, TILE_SIZE, TILE_SIZE};
+        dirX = 0;
+        dirY = 1;
+        active = true;
+    }
+
+    void move(const vector<Wall>& walls) {
+        if (--moveDelay > 0) return;
+        moveDelay = 15;
+
+        int r = rand() % 4;
+        if (r == 0) {        // up
+            dirX = 0;
+            dirY = -5;
+        }
+        else if (r == 1) {   // down
+            dirX = 0;
+            dirY = 5;
+        }
+        else if (r == 2) {   // left
+            dirX = -5;
+            dirY = 0;
+        }
+        else if (r == 3) {   // right
+            dirX = 5;
+            dirY = 0;
+        }
+
+        // Tính vị trí mới
+        int newX = x + dirX;
+        int newY = y + dirY;
+        SDL_Rect newRect = { newX, newY, TILE_SIZE, TILE_SIZE };
+
+        // Kiểm tra va chạm tường
+        for (const auto& wall : walls) {
+            if (wall.active && SDL_HasIntersection(&newRect, &wall.rect)) {
+                return; // Đụng tường thì bỏ qua không di chuyển
+            }
+        }
+
+        // Check giới hạn màn hình
+        if (newX >= TILE_SIZE && newX <= SCREEN_WIDTH - TILE_SIZE * 2 &&
+            newY >= TILE_SIZE && newY <= SCREEN_HEIGHT - TILE_SIZE * 2) {
+            x = newX;
+            y = newY;
+            rect.x = x;
+            rect.y = y;
+        }
+    }
+
+    void shoot() {
+        if (--shootDelay > 0) return;
+        shootDelay = 30; // nên để lâu hơn 5 để tránh bắn nhanh quá
+        bullets.push_back(Bullet(x + TILE_SIZE / 2 - 5, y + TILE_SIZE / 2 - 5, dirX, dirY));
+    }
+
+    void updateBullets() {
+        for (auto& bullet : bullets) {
+            bullet.move();
+        }
+        bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
+            [](Bullet& b) { return !b.active; }), bullets.end());
+    }
+
+    void render(SDL_Renderer* renderer) {
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // màu xanh lá
+        SDL_RenderFillRect(renderer, &rect);
+        for (auto& bullet : bullets) {
+            bullet.render(renderer);
+        }
+    }
+};
+
 
 class Game {
 public:
@@ -151,6 +238,8 @@ public:
     SDL_Renderer* renderer;
     vector<Wall> walls;
     PlayerTank* player;
+    int enemyNumber = 3;
+    vector<EnemyTank> enemies;
 
     Game() {
         running = true;
@@ -183,6 +272,8 @@ public:
         player = new PlayerTank(((MAP_WIDTH - 1) / 2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer);
 
         generateWalls();
+        player = new PlayerTank (((MAP_WIDTH - 1) /2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer);
+        spawnEnemies();
     }
     ~Game() {
         delete player;
@@ -193,8 +284,8 @@ public:
     }
 
     void render() {
-        SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
-        SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255); //boundaries
+        SDL_RenderClear(renderer); // delete color
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         for (int i = 1; i < MAP_HEIGHT - 1; ++i) {
@@ -207,6 +298,9 @@ public:
                 walls[i].render(renderer);
         }
         player->render(renderer);
+        for(auto &enemy : enemies) {
+            enemy.render(renderer);
+        }
         SDL_RenderPresent(renderer);
     }
 
@@ -246,6 +340,14 @@ public:
     void update() {
         player->updateBullets();
 
+        for(auto& enemy : enemies) {
+            enemy.move(walls);
+            enemy.updateBullets();
+            if(rand() % 100 < 2) {
+                enemy.shoot();
+            }
+        }
+     for(auto& enemy : enemies) {
         for (auto& bullet : player->bullets) {
             for(auto& wall : walls) {
                 if(wall.active && SDL_HasIntersection(&bullet.rect, &wall.rect)) {
@@ -254,6 +356,57 @@ public:
                     break;
                 }
             }
+        }
+    }
+    for(auto& bullet : player->bullets) {
+        for(auto& wall : walls) {
+            if(wall.active && SDL_HasIntersection(&bullet.rect, &wall.rect)) {
+                wall.active = false;
+                bullet.active = false;
+                break;
+            }
+        }
+    }
+    for(auto& bullet : player->bullets) {
+        for(auto& enemy : enemies) {
+            if(enemy.active && SDL_HasIntersection(&bullet.rect, &enemy.rect)) {
+                enemy.active = false;
+                bullet.active = false;
+            }
+        }
+    }
+    enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
+                                 [](EnemyTank &e) { return !e.active;}), enemies.end());
+    if(enemies.empty()) {
+        running = false;
+    }
+    for(auto& enemy : enemies) {
+        for(auto& bullet : enemy.bullets) {
+            if(SDL_HasIntersection(&bullet.rect, &player->rect)) {
+                running = false;
+                return;
+            }
+        }
+    }
+    }
+
+    void spawnEnemies() {
+        enemies.clear();
+        for(int i = 0; i < enemyNumber; ++i){
+            int ex,ey;
+            bool validPosition = false;
+            while (!validPosition) {
+                ex = (rand() % (MAP_WIDTH - 2) + 1) * TILE_SIZE;
+                ey = (rand() % (MAP_HEIGHT - 2) + 1) * TILE_SIZE;
+                validPosition = true;
+                for(const auto& wall : walls) {
+                    if(wall.active && wall.x == ex && wall.y == ey) {
+                        validPosition = false;
+                        break;
+                    }
+                }
+            }
+            enemies.push_back(EnemyTank(ex,ey));
         }
     }
 
