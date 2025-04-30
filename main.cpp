@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
+#include <fstream>
 
 
 using namespace std;
@@ -14,6 +15,8 @@ const int SCREEN_HEIGHT = 640; // chiều cao màn hình
 const int TILE_SIZE = 40; // kích thước mỗi ô vuông
 const int MAP_WIDTH = SCREEN_WIDTH / TILE_SIZE; // số ô theo chiều ngang
 const int MAP_HEIGHT = SCREEN_HEIGHT / TILE_SIZE; // số ô theo chiều cao
+int bestScore = 0;
+
 
 // hàm tải texture từ file ảnh:  định nghĩa hàm loadTexture trả về con trỏ kiểu SDL_Texture
 // const string& path : đường dẫn đến file ảnh cần tải
@@ -25,6 +28,22 @@ SDL_Texture* loadTexture(const string& path, SDL_Renderer* renderer) {
         cerr << "Failed to load image " << path << "! SDL_image Error: " << IMG_GetError() << endl;
     }
     return newTexture;
+}
+void loadBestScore(const string& filename) {
+    ifstream inFile(filename);
+    if (inFile.is_open()) {
+        inFile >> bestScore;
+        inFile.close();
+    } else {
+        bestScore = 0; // nếu chưa có file
+    }
+}
+void saveBestScore(const string& filename, int score) {
+    ofstream outFile(filename);
+    if (outFile.is_open()) {
+        outFile << score;
+        outFile.close();
+    }
 }
 
 // lớp wall trong game
@@ -283,6 +302,12 @@ public:
     vector<EnemyTank> enemies; // danh sách xe tăng địch
     int score;
     TTF_Font* font;
+    enum GameState { MENU, PLAYING }; // định nghĩa trạng thái
+    TTF_Font* titleFont;
+    TTF_Font* menuFont;
+    int highScore; // hoặc bạn có thể đọc từ file
+    GameState state;
+    bool isTwoPlayer;
 
 
     // hàm khởi tạo game
@@ -321,12 +346,34 @@ public:
             }
             // mở font chữ
             font = TTF_OpenFont("arial.ttf", 24);
+
             if (!font) {
             cout << "Failed to load font: " << TTF_GetError() << endl;
             running = false;
             return;
             }
+            titleFont = TTF_OpenFont("arial.ttf", 100);
+            if (!titleFont) {
+                cout << "Failed to load title font: " << TTF_GetError() << endl;
+            running = false;
+            return;
+            }
+            menuFont = TTF_OpenFont("arial.ttf", 32);
+            if (!menuFont) {
+                    cout << "Failed to load menu font: " << TTF_GetError() << endl;
+                    running = false;
+                    return;
+}
+
         score = 0;
+        // Đọc highScore từ file
+        ifstream infile("highscore.txt");
+        if (infile.is_open()) {
+                infile >> highScore;
+        infile.close();
+        } else {
+            highScore = 0; // nếu không có file thì mặc định là 0
+            }
         // chọn texture cho các hàm
         backgroundTexture = loadTexture("background.png", renderer);
         wallTexture = loadTexture("wall.png", renderer);
@@ -342,6 +389,8 @@ public:
         player = new PlayerTank(((MAP_WIDTH - 1) / 2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer, playerTexture, bulletTexture);
         // sinh ra xe tăng địch
         spawnEnemies();
+        state = MENU; // trạng thái ban đầu là menu
+        isTwoPlayer = false;
     }
     // hàm giải phóng game
     ~Game() {
@@ -484,6 +533,15 @@ public:
             }
         }
     }
+      if (score > highScore) {
+    highScore = score;
+    ofstream outfile("highscore.txt");
+    if (outfile.is_open()) {
+        outfile << highScore;
+        outfile.close();
+    }
+}
+
 }
 
     // vẽ game
@@ -570,17 +628,131 @@ void showEndScreen() {
         SDL_Delay(100);
     }
 }
+void renderText(const string &message, TTF_Font* font, SDL_Color color, int x, int y, bool center = false) {
+    SDL_Surface* surface = TTF_RenderText_Blended(font, message.c_str(), color);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_Rect dest;
+    dest.w = surface->w;
+    dest.h = surface->h;
+    dest.x = center ? x - dest.w / 2 : x;
+    dest.y = center ? y - dest.h / 2 : y;
+    SDL_FreeSurface(surface);
+    SDL_RenderCopy(renderer, texture, NULL, &dest);
+    SDL_DestroyTexture(texture);
+}
 
+void showMenuScreen() {
+    SDL_Event e;
+    SDL_Color titleColor = {180, 200, 255};
+    SDL_Color scoreColor = {130, 150, 200};
+    SDL_Color buttonColor = {255, 255, 120};        // Màu nút thường
+    SDL_Color selectedColor = {255, 240, 100};      // Màu nút được chọn
+    SDL_Color buttonTextColor = {30, 50, 80};
+    SDL_Color selectedTextColor = {10, 30, 60};     // Màu chữ khi chọn
 
-    void run() {
-        while (running) {
-            handleEvents(); // bắt và xử lý sự kiện từ người dùng
-            update(); // cập nhật trạng thái game
-            render(); // vẽ toàn bộ màn hình
-            SDL_Delay(16); // tạm dừng để giữ FPS ổn định
+    SDL_Rect onePlayerRect = {SCREEN_WIDTH / 2 - 150, 260, 300, 70};
+    SDL_Rect twoPlayerRect = {SCREEN_WIDTH / 2 - 150, 350, 300, 70};
+
+    int selectedOption = 0;
+
+    while (state == MENU && running) {
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT) {
+                running = false;
+                return;
+            } else if (e.type == SDL_KEYDOWN) {
+                switch (e.key.keysym.sym) {
+                    case SDLK_UP:
+                    case SDLK_DOWN:
+                        selectedOption = 1 - selectedOption; // Chuyển qua lại 0 <-> 1
+                        break;
+                    case SDLK_RETURN:
+                        isTwoPlayer = (selectedOption == 1);
+                        resetGame();
+                        return;
+                    case SDLK_ESCAPE:
+                        running = false;
+                        return;
+                }
+            } else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+                int x = e.button.x;
+                int y = e.button.y;
+                if (x >= onePlayerRect.x && x <= onePlayerRect.x + onePlayerRect.w &&
+                    y >= onePlayerRect.y && y <= onePlayerRect.y + onePlayerRect.h) {
+                    isTwoPlayer = false;
+                    resetGame();
+                    return;
+                } else if (x >= twoPlayerRect.x && x <= twoPlayerRect.x + twoPlayerRect.w &&
+                           y >= twoPlayerRect.y && y <= twoPlayerRect.y + twoPlayerRect.h) {
+                    isTwoPlayer = true;
+                    resetGame();
+                    return;
+                }
+            }
         }
-        showEndScreen();
+
+        SDL_SetRenderDrawColor(renderer, 10, 30, 70, 255);
+        SDL_RenderClear(renderer);
+
+        renderText("BATTLE CITY", titleFont, titleColor, SCREEN_WIDTH / 2, 160, true);
+
+        // --- Vẽ nút 1 PLAYER ---
+        if (selectedOption == 0) {
+            SDL_SetRenderDrawColor(renderer, selectedColor.r, selectedColor.g, selectedColor.b, 255);
+            SDL_RenderFillRect(renderer, &onePlayerRect);
+            renderText("1 PLAYER", menuFont, selectedTextColor, SCREEN_WIDTH / 2, 295, true);
+        } else {
+            SDL_SetRenderDrawColor(renderer, buttonColor.r, buttonColor.g, buttonColor.b, 255);
+            SDL_RenderFillRect(renderer, &onePlayerRect);
+            renderText("1 PLAYER", menuFont, buttonTextColor, SCREEN_WIDTH / 2, 295, true);
+        }
+
+        // --- Vẽ nút 2 PLAYER ---
+        if (selectedOption == 1) {
+            SDL_SetRenderDrawColor(renderer, selectedColor.r, selectedColor.g, selectedColor.b, 255);
+            SDL_RenderFillRect(renderer, &twoPlayerRect);
+            renderText("2 PLAYER", menuFont, selectedTextColor, SCREEN_WIDTH / 2, 385, true);
+        } else {
+            SDL_SetRenderDrawColor(renderer, buttonColor.r, buttonColor.g, buttonColor.b, 255);
+            SDL_RenderFillRect(renderer, &twoPlayerRect);
+            renderText("2 PLAYER", menuFont, buttonTextColor, SCREEN_WIDTH / 2, 385, true);
+        }
+
+        renderText("BEST SCORE", menuFont, scoreColor, SCREEN_WIDTH / 2, 470, true);
+        renderText(to_string(highScore), menuFont, scoreColor, SCREEN_WIDTH / 2, 510, true);
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16);
     }
+}
+
+void resetGame() {
+    score = 0;
+    walls.clear();
+    generateWalls();
+    delete player;
+    player = new PlayerTank(((MAP_WIDTH - 1) / 2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer, playerTexture, bulletTexture);
+    spawnEnemies();
+    state = PLAYING;
+}
+
+
+  void run() {
+    while (running) {
+        if (state == MENU) {
+            showMenuScreen();
+        } else if (state == PLAYING) {
+            handleEvents();
+            update();
+            render();
+            SDL_Delay(16);
+        }
+    }
+
+    showEndScreen(); // khi thoát khỏi vòng lặp, hiện màn hình kết thúc
+
+}
+
 };
 int main(int argc, char* argv[]) {
     // Khởi tạo SDL (bao gồm âm thanh)

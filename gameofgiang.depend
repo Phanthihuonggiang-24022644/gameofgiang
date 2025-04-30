@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1745283656 source:c:\sdl\gameofgiang\main.cpp
+1745610286 source:c:\sdl\gameofgiang\main.cpp
 	<iostream>
 	<SDL.h>
 	<SDL_image.h>
@@ -7,4 +7,5 @@
 	<algorithm>
 	<SDL_ttf.h>
 	<SDL_mixer.h>
+	<fstream>
 
