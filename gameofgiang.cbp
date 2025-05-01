@@ -13,6 +13,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add directory="../gameofgiang" />
 				</Compiler>
 			</Target>
 			<Target title="Release">
@@ -22,6 +23,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-O2" />
+					<Add directory="../gameofgiang" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -31,7 +33,16 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="bullet.cpp" />
+		<Unit filename="bullet.h" />
+		<Unit filename="constant.h" />
+		<Unit filename="enemytank.cpp" />
+		<Unit filename="enemytank.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="playertank.cpp" />
+		<Unit filename="playertank.h" />
+		<Unit filename="wall.cpp" />
+		<Unit filename="wall.h" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>
