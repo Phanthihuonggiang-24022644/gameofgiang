@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1746291752 source:c:\sdl\gameofgiang\main.cpp
+1746380414 source:c:\sdl\gameofgiang\main.cpp
 	<iostream>
 	<SDL.h>
 	<SDL_image.h>
@@ -13,26 +13,27 @@
 	"Bullet.h"
 	"playertank.h"
 	"enemytank.h"
+	"level.h"
 
 1746041450 source:c:\sdl\gameofgiang\bullet.cpp
 	"Bullet.h"
 
-1746126839 c:\sdl\gameofgiang\bullet.h
+1745744895 c:\sdl\gameofgiang\bullet.h
 	<SDL.h>
 	"constant.h"
 	"wall.h"
 
-1745701178 c:\sdl\gameofgiang\constant.h
+1746353368 c:\sdl\gameofgiang\constant.h
 
-1746119892 c:\sdl\gameofgiang\wall.h
+1745675158 c:\sdl\gameofgiang\wall.h
 	<SDL.h>
 	"constant.h"
 
-1746294922 source:c:\sdl\gameofgiang\enemytank.cpp
+1746380414 source:c:\sdl\gameofgiang\enemytank.cpp
 	"enemytank.h"
 	<algorithm>
 
-1745705101 c:\sdl\gameofgiang\enemytank.h
+1746380414 c:\sdl\gameofgiang\enemytank.h
 	<SDL.h>
 	"constant.h"
 	"wall.h"
@@ -49,10 +50,19 @@
 	<vector>
 	<algorithm>
 
-1746119892 source:c:\sdl\gameofgiang\wall.cpp
+1745674983 source:c:\sdl\gameofgiang\wall.cpp
 	"wall.h"
 
 1745703192 source:c:\sdl\gameofgiang\playertank.cpp
 	"playertank.h"
 	<algorithm>
+
+1746301093 source:c:\sdl\gameofgiang\level.cpp
+	"level.h"
+	<fstream>
+	<sstream>
+	<iostream>
+
+1746266525 c:\sdl\gameofgiang\level.h
+	<vector>
 

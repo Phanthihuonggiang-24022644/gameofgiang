@@ -104,7 +104,7 @@ public:
         }
 
         font = TTF_OpenFont("arial.ttf", 24);
-        titleFont = TTF_OpenFont("arial.ttf", 100);
+        titleFont = TTF_OpenFont("stencilla.ttf", 90);
         menuFont = TTF_OpenFont("arial.ttf", 32);
         if (!font || !titleFont || !menuFont) {
             cerr << "Failed to load fonts: " << TTF_GetError() << endl;
@@ -332,7 +332,7 @@ public:
         if(isTwoPlayer){player2->render(renderer);}
         for (auto& enemy : enemies) enemy.render(renderer);
 
-        SDL_Color color = {255, 255, 255};
+        SDL_Color color = {0,0,0};
         string scoreText = "Score: " + to_string(score);
         SDL_Surface* surface = TTF_RenderText_Solid(font, scoreText.c_str(), color);
         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
