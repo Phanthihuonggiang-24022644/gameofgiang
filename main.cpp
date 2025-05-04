@@ -11,6 +11,7 @@
 #include "Bullet.h"
 #include "playertank.h"
 #include "enemytank.h"
+#include "level.h"
 
 using namespace std;
 
@@ -52,14 +53,14 @@ public:
     SDL_Texture* wallTexture;
     SDL_Texture* bulletTexture;
     SDL_Texture* playerTexture;
-    SDL_Texture* player2Texture; // Sửa thêm riêng texture player2
+    SDL_Texture* player2Texture;
     SDL_Texture* enemyTexture;
 
     vector<Wall> walls;
     PlayerTank* player;
     PlayerTank* player2;
 
-    int enemyNumber = 10;
+    int enemyNumber = 15;
     vector<EnemyTank> enemies;
     int score;
     TTF_Font* font;
@@ -69,6 +70,8 @@ public:
     enum GameState { MENU, PLAYING };
     GameState state;
     bool isTwoPlayer;
+    int currentLevel;
+
 
     Game() {
         running = true;
@@ -138,6 +141,7 @@ public:
         spawnEnemies();
         state = MENU;
         isTwoPlayer = false;
+        currentLevel = 1;
     }
 
     ~Game() {
@@ -159,12 +163,12 @@ public:
     }
 
     void generateWalls() {
-        for (int i = 3; i < MAP_HEIGHT - 2; i += 3) {
-            for (int j = 3; j < MAP_WIDTH - 2; j += 3) {
-                walls.emplace_back(j * TILE_SIZE, i * TILE_SIZE, wallTexture);
-            }
-        }
+    LevelData levelData = getLevelData(currentLevel);
+    for (auto& pos : levelData.wallPositions) {
+        walls.emplace_back(pos.first * TILE_SIZE, pos.second * TILE_SIZE, wallTexture);
     }
+    enemyNumber = levelData.enemyCount;
+}
 
     void spawnEnemies() {
         enemies.clear();
@@ -290,10 +294,15 @@ public:
 
         enemies.erase(remove_if(enemies.begin(), enemies.end(), [](EnemyTank& e) { return !e.active; }), enemies.end());
 
-        if (enemies.empty()) {
-            running = false;
-            gameWon = true;
-        }
+       if (enemies.empty()) {
+    currentLevel++;
+    if (currentLevel > 3) {
+        running = false;
+        gameWon = true;
+    } else {
+        resetGame(isTwoPlayer);  // Load màn tiếp theo
+    }
+}
 
         for (auto& enemy : enemies) {
     for (auto& bullet : enemy.Bullets) {
@@ -335,45 +344,56 @@ public:
         SDL_RenderPresent(renderer);
     }
 
-    void showEndScreen() {
-        bool waiting = true;
-        SDL_Event e;
-        Uint32 startTime = SDL_GetTicks();
+    void showEndScreen(int currentLevel) {
+    const int totalLevels = 3; // Mặc định luôn là 3
+    bool waiting = true;
+    SDL_Event e;
+    Uint32 startTime = SDL_GetTicks();
 
-        while (waiting) {
-            while (SDL_PollEvent(&e)) {
-                if (e.type == SDL_QUIT || e.type == SDL_KEYDOWN) {
-                    waiting = false;
-                }
-            }
-
-            if (backgroundTexture) SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
-            for (auto& wall : walls) if (wall.active) wall.render(renderer);
-            player->render(renderer);
-            player2->render(renderer);
-            for (auto& enemy : enemies) if (enemy.active) enemy.render(renderer);
-
-            SDL_Color color = {255, 255, 255};
-            string endMessage = gameWon ? "You Win! Score: " + to_string(score) : "You Lose! Score: " + to_string(score);
-            SDL_Surface* endSurface = TTF_RenderText_Solid(font, endMessage.c_str(), color);
-            SDL_Texture* endTexture = SDL_CreateTextureFromSurface(renderer, endSurface);
-            SDL_Rect endRect = {
-                SCREEN_WIDTH / 2 - endSurface->w / 2,
-                SCREEN_HEIGHT / 2 - endSurface->h / 2,
-                endSurface->w,
-                endSurface->h
-            };
-            SDL_RenderCopy(renderer, endTexture, NULL, &endRect);
-            SDL_FreeSurface(endSurface);
-            SDL_DestroyTexture(endTexture);
-
-            SDL_RenderPresent(renderer);
-
-            if (SDL_GetTicks() - startTime > 5000) { // Tự thoát sau 5s
+    while (waiting) {
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT || e.type == SDL_KEYDOWN) {
                 waiting = false;
             }
         }
+
+        if (backgroundTexture) SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
+        for (auto& wall : walls) if (wall.active) wall.render(renderer);
+        if (player) player->render(renderer);
+        if (player2) player2->render(renderer);
+        for (auto& enemy : enemies) if (enemy.active) enemy.render(renderer);
+
+        SDL_Color color = {255, 255, 255};
+        std::string endMessage;
+
+        if (!gameWon) {
+            endMessage = "You Lose! Score: " + std::to_string(score);
+        } else if (currentLevel >= totalLevels) {
+            endMessage = "You Win the Game! Total Score: " + std::to_string(score);
+        } else {
+            endMessage = "Level " + std::to_string(currentLevel) + " Cleared!";
+        }
+
+        SDL_Surface* endSurface = TTF_RenderText_Solid(font, endMessage.c_str(), color);
+        SDL_Texture* endTexture = SDL_CreateTextureFromSurface(renderer, endSurface);
+        SDL_Rect endRect = {
+            SCREEN_WIDTH / 2 - endSurface->w / 2,
+            SCREEN_HEIGHT / 2 - endSurface->h / 2,
+            endSurface->w,
+            endSurface->h
+        };
+        SDL_RenderCopy(renderer, endTexture, NULL, &endRect);
+        SDL_FreeSurface(endSurface);
+        SDL_DestroyTexture(endTexture);
+
+        SDL_RenderPresent(renderer);
+
+        if (SDL_GetTicks() - startTime > 5000) {
+            waiting = false;
+        }
     }
+}
+
 void renderText(const string &message, TTF_Font* font, SDL_Color color, int x, int y, bool center = false) {
     SDL_Surface* surface = TTF_RenderText_Blended(font, message.c_str(), color);
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -389,16 +409,14 @@ void renderText(const string &message, TTF_Font* font, SDL_Color color, int x, i
 
 void resetGame(bool isTwoPlayer) {
     state = PLAYING;
-    score = 0;
     walls.clear();
     generateWalls();
-
     // Tạo player 1
-    player = new PlayerTank(((MAP_WIDTH - 1) / 2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer, playerTexture, bulletTexture);
+    player = new PlayerTank(((MAP_WIDTH - 1) / 2 + 2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer, playerTexture, bulletTexture);
 
     // Nếu 2 người chơi thì tạo player2
     if (isTwoPlayer == true) {
-        player2 = new PlayerTank(((MAP_WIDTH - 1) / 2 + 2) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer, player2Texture, bulletTexture);
+        player2 = new PlayerTank(((MAP_WIDTH - 1) / 2 -2 ) * TILE_SIZE, (MAP_HEIGHT - 2) * TILE_SIZE, renderer, player2Texture, bulletTexture);
     }
 
     spawnEnemies();
@@ -505,7 +523,7 @@ void showMenuScreen() {
         }
     }
 
-    showEndScreen(); // khi thoát khỏi vòng lặp, hiện màn hình kết thúc
+    showEndScreen(currentLevel); // khi thoát khỏi vòng lặp, hiện màn hình kết thúc
 
 }
 
@@ -531,6 +549,5 @@ int main(int argc, char* argv[]) {
     Mix_FreeMusic(music);
     Mix_CloseAudio();
     SDL_Quit();
-    return 0;
 }
 

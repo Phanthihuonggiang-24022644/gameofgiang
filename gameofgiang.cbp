@@ -38,6 +38,8 @@
 		<Unit filename="constant.h" />
 		<Unit filename="enemytank.cpp" />
 		<Unit filename="enemytank.h" />
+		<Unit filename="level.cpp" />
+		<Unit filename="level.h" />
 		<Unit filename="main.cpp" />
 		<Unit filename="playertank.cpp" />
 		<Unit filename="playertank.h" />
