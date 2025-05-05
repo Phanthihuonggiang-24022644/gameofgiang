@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1746437832 source:c:\sdl\gameofgiang\main.cpp
+1746440166 source:c:\sdl\gameofgiang\main.cpp
 	<iostream>
 	<SDL.h>
 	<SDL_image.h>
@@ -14,6 +14,7 @@
 	"playertank.h"
 	"enemytank.h"
 	"level.h"
+	"utils.h"
 
 1746041450 source:c:\sdl\gameofgiang\bullet.cpp
 	"Bullet.h"
@@ -65,4 +66,14 @@
 
 1746266525 c:\sdl\gameofgiang\level.h
 	<vector>
+
+1746438133 c:\sdl\gameofgiang\utils.h
+	<string>
+	<SDL.h>
+
+1746438133 source:c:\sdl\gameofgiang\utils.cpp
+	"utils.h"
+	<SDL_image.h>
+	<iostream>
+	<fstream>
 

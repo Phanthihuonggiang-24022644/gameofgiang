@@ -43,6 +43,8 @@
 		<Unit filename="main.cpp" />
 		<Unit filename="playertank.cpp" />
 		<Unit filename="playertank.h" />
+		<Unit filename="utils.cpp" />
+		<Unit filename="utils.h" />
 		<Unit filename="wall.cpp" />
 		<Unit filename="wall.h" />
 		<Extensions>
